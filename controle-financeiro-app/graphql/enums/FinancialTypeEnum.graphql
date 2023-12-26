@@ -1,0 +1,4 @@
+enum FinancialTypeEnum {
+    REVENUE  @enum(value: "revenue")
+    EXPENSE  @enum(value: "expense")
+}

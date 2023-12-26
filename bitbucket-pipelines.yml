@@ -1,0 +1,124 @@
+image: python:3.7.4-alpine3.10
+
+definitions:
+
+  steps:
+
+    # DEPLOY FROM PRODUCTION AND DEVELOP
+    - step: &docker-deploy
+        name: "Build App"
+        image: atlassian/pipelines-awscli
+        services:
+          - docker
+        script:
+          - |
+            if [ -f ./notrelife-pmn/.env ]; then
+                export $(cat ./notrelife-pmn/.env | xargs)
+            fi
+          - aws configure set aws_access_key_id "${AWS_KEY}"
+          - aws configure set aws_secret_access_key "${AWS_SECRET}"
+          - eval $(aws ecr get-login --no-include-email --region sa-east-1 | sed 's;https://;;g')
+          - docker build -f ./.docker/app/Dockerfile -t $IMAGE_REPOSITORY:$TAG .
+          - docker push $IMAGE_REPOSITORY:$TAG
+
+    # SET ENVIRONMENT STAGING
+    - step: &staging-set-environment
+        name: "Set environment"
+        deployment: staging
+        script:
+          - export TAG="${PREFIX_TAG}-v1.${BITBUCKET_BUILD_NUMBER}"
+          - export APP_NAME="\"${APP_NAME}\""
+          - export APP_ENV="${APP_ENV}"
+          - export APP_DEBUG="${APP_DEBUG}"
+          - export APP_URL="${APP_URL}"
+          - export APP_KEY="${APP_KEY}"
+          - printenv
+          - printenv | grep APP > notrelife-pmn/.env
+          - printenv | grep TAG= >> notrelife-pmn/.env
+        artifacts:
+          - notrelife-pmn/.env
+
+    # SET ENVIRONMENT PRODUCTIOn
+    - step: &production-set-environment
+        name: "Set environment"
+        deployment: production
+        script:
+          - export TAG="${PREFIX_TAG}-v1.${BITBUCKET_BUILD_NUMBER}"
+          - export APP_NAME="\"${APP_NAME}\""
+          - export APP_ENV="${APP_ENV}"
+          - export APP_DEBUG="${APP_DEBUG}"
+          - export APP_URL="${APP_URL}"
+          - export APP_KEY="${APP_KEY}"
+          - printenv | grep APP > notrelife-pmn/.env
+          - printenv | grep TAG= >> notrelife-pmn/.env
+        artifacts:
+          - notrelife-pmn/.env
+
+    # PUBLISH STATING
+    - step: &staging-publish
+        name: "Generate Package and Publish new revision"
+        script:
+          - |
+            if [ -f ./notrelife-pmn/.env ]; then
+                export $(cat ./notrelife-pmn/.env | xargs)
+            fi
+          - pipe: docker://kalborfon/bitbucket-pipe-helm-k8s:v1.2
+            variables:
+              NAMESPACE: $APP_NAMESPACE
+              AWS_KEY: $AWS_KEY
+              AWS_SECRET: $AWS_SECRET
+              EKS_CLUSTER: "healthid-core"
+              AWS_REGION: "sa-east-1"
+              RELEASE_NAME: $APP_RELEASE_NAME
+              HELM_COMMAND: 'upgrade' # this along with the next option allows the chart to be installed or upgraded
+              HELM_CHART_PATH: '.helm/person-manager-notrelife/'
+              HELM_COMMAND_ARGS: '--set image.tag=${TAG}  --set ingress.host=homolog.app.notrelife.healthidlab.com.br  --set schedule=true --set consumers.communication=true --set frontUrl=https://homolog.notrelife.healthidlab.com.br ' # and any other commands not supported, see the README for a full list of supported options
+
+    # PUBLISH PRODUCTIOn
+    - step: &production-publish
+        name: "Generate Package and Publish new revision"
+        script:
+          - |
+            if [ -f ./notrelife-pmn/.env ]; then
+                export $(cat ./notrelife-pmn/.env | xargs)
+            fi
+          - pipe: docker://kalborfon/bitbucket-pipe-helm-k8s:v1.2
+            variables:
+              NAMESPACE: $APP_NAMESPACE
+              AWS_KEY: $AWS_KEY
+              AWS_SECRET: $AWS_SECRET
+              EKS_CLUSTER: "healthid-core"
+              AWS_REGION: "sa-east-1"
+              RELEASE_NAME: $APP_RELEASE_NAME
+              HELM_COMMAND: 'upgrade' # this along with the next option allows the chart to be installed or upgraded
+              HELM_CHART_PATH: '.helm/person-manager-notrelife/'
+              HELM_COMMAND_ARGS: '--set image.tag=${TAG} --set environment=pre-production --set ingress.host=notrelife.healthidlab.com.br --set schedule=true --set consumers.communication=true'
+  
+    - step: &make-tag
+        name: Tag version
+        image: atlassian/default-image:2
+        script:
+          - |
+            if [ -f ./notrelife-pmn/.env ]; then
+                export $(cat ./notrelife-pmn/.env | xargs)
+            fi
+          - echo ${BITBUCKET_GIT_SSH_ORIGIN}
+          - git remote set-url origin ${BITBUCKET_GIT_SSH_ORIGIN}
+          - VERSION=production-v1.$BITBUCKET_BUILD_NUMBER
+          - echo $VERSION
+          - git tag $VERSION
+          - git push origin --tags
+
+pipelines:
+
+  branches:
+  
+    develop:
+      - step: *staging-set-environment
+      - step: *docker-deploy
+      - step: *staging-publish
+
+    master:
+      - step: *production-set-environment
+      - step: *docker-deploy
+      - step: *production-publish

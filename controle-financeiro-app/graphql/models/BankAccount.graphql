@@ -1,0 +1,16 @@
+type BankAccount {
+    id: ID!
+    user: User @belongsTo
+    description: String!
+    start_balance: Float
+    revenueCount: Int @count(relation: "revenueFinancials")
+    expanseCount: Int @count(relation: "expanseFinancials")
+    revenueTotal: Float @aggregate(relation: "revenueFinancialsPaid", column: "value", function: SUM)
+    expanseTotal: Float @aggregate(relation: "expanseFinancialsPaid", column: "value", function: SUM)
+    expanseCreditTotal: Float @aggregate(relation: "creditCardFinancials", column: "value", function: SUM)
+}
+
+input BankAccountInput {
+    description: String!
+    start_balance: Float
+}

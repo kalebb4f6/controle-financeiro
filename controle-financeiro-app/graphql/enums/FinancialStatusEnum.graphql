@@ -1,0 +1,5 @@
+enum FinancialStatusEnum {
+    PENDING @enum(value: "pending")
+    PAID @enum(value: "paid")
+    CANCELED @enum(value: "canceled")
+}

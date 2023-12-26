@@ -1,0 +1,27 @@
+type FinancialRelease {
+    id: ID!
+    customer: Customer @belongsTo
+    bankAccount: BankAccount @belongsTo
+    creditCard: CreditCard @belongsTo
+    description: String!
+    value: Float!
+    type: FinancialTypeEnum
+    status: FinancialStatusEnum
+    category: Category @belongsTo
+    date: Date!
+    createdAt: String!
+    updatedAt: String!
+}
+
+input FinancialReleaseInput {
+    id: ID
+    bankAccount: ID @rename(attribute: "bank_account_id") @rules(apply: ["exists:bank_accounts,id"])
+    creditCard: ID @rename(attribute: "credit_card_id") @rules(apply: ["exists:credit_cards,id"])
+    description: String!
+    installments: Int
+    value: Float!
+    type: FinancialTypeEnum
+    status: FinancialStatusEnum
+    category: ID! @rename(attribute: "category_id") @rules(apply: ["exists:categories,id"])
+    date: Date!
+}

@@ -1,0 +1,47 @@
+map $http_x_forwarded_proto $fe_https {
+    default off;
+    https on;
+}
+server {
+    listen       80;
+   # server_name  localhost;
+
+    #charset koi8-r;
+    #access_log  /var/log/nginx/host.access.log  main;
+    root   /app/public;
+    index  index.html index.htm index.php;
+   # Block all web requests to hidden directories
+       location ~ /\. {
+               deny all;
+       }
+
+       # Block access to build scripts.
+       location ~* /(Gruntfile\.js|package\.json|node_modules) {
+               deny all;
+               return 404;
+       }
+
+       # Add cache headers for site assets.
+       location ~* \.(?:ico|css|js|gif|jpe?g|png|eot|woff|ttf)$ {
+           expires 30d;
+           add_header Pragma public;
+           add_header Cache-Control "public";
+       }
+
+       location / {
+           try_files $uri $uri/ /index.php?$args;
+       }
+
+       location ~ \.php$ {
+           try_files $uri =404;
+           fastcgi_split_path_info ^(.+\.php)(/.+)$;
+           fastcgi_pass app:9000;
+           fastcgi_index index.php;
+           include fastcgi_params;
+           fastcgi_buffer_size 32k;
+           fastcgi_buffers 4 32k;
+           fastcgi_param HTTPS $fe_https;
+           fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+           fastcgi_param PATH_INFO $fastcgi_path_info;
+       }
+}

@@ -1,0 +1,13 @@
+type Category {
+    id: ID!
+    name: String!
+    user: User
+    parentCategory: Category
+}
+
+
+input CategoryInput {
+    id: ID
+    name: String!
+    parentCategory: ID @rename(attribute: "parent_category_id") @rules(apply: ["exists:categories,id"])
+}

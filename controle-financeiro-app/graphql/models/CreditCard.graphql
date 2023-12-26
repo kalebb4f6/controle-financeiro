@@ -1,0 +1,19 @@
+type CreditCard {
+    id: ID!
+    bankAccount: BankAccount!
+    customer: Customer
+    name: String!
+    flag: String!
+    dayOfClose: Int! @rename(attribute: "day_of_close")
+    preferential: Boolean!
+}
+
+input CreditCardInput {
+    id: ID
+    bankAccountId: ID! @rename(attribute: "bank_account_id") @rules(apply: ["exists:bank_accounts,id"])
+    customerId: ID @rename(attribute: "customer_id") @rules(apply: ["exists:customers,id"])
+    name: String!
+    flag: String!
+    dayOfClose: Int!  @rename(attribute: "day_of_close") @rules(apply: ["between:1,29"])
+    preferential: Boolean @rules(apply: ["boolean"])
+}

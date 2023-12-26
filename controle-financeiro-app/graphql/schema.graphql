@@ -1,0 +1,47 @@
+"A datetime string with format `Y-m-d H:i:s`, e.g. `2018-05-23 13:43:32`."
+scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\DateTime")
+"A date string with format `Y-m-d`, e.g. `2011-05-23`."
+scalar Date @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\Date")
+input DateRange {
+    from: Date!
+    to: Date!
+}
+#import enums/*.graphql
+#import models/*.graphql
+"Indicates what fields are available at the top level of a query operation."
+type Query {
+    "Find all Bank Accounts"
+    bankAccounts: [BankAccount] @all
+    "Find Bank Account by ID"
+    bankAccount(id: ID! @eq): BankAccount @find
+    "Find Financial Releases"
+    financials(
+        "Filter by date range"
+        date: DateRange @whereBetween,
+        "Filter by category"
+        category: String @whereHasConditions(columns: ["name", "id", "parent_category_id"]),
+        "Filter by description, id, value, bank_account_id, credit_card_id"
+        where: _@whereConditions(columns: ["description", "id", "value", "bank_account_id", "credit_card_id"])
+    ): [FinancialRelease] @all
+    "Find Financial Release by ID"
+    financial(id: ID! @eq): FinancialRelease @find
+    "Find Categories"
+    categories: [Category] @all
+    "Find Credit cards "
+    creditCards: [CreditCard] @all
+}
+
+
+type Mutation {
+    bankAccountCreate(input: BankAccountInput! @spread): BankAccount @create
+    bankAccountDelete(id: ID! @eq): BankAccount @delete
+
+    financialCreate(input: FinancialReleaseInput! @spread): FinancialRelease @field(resolver: "App\\GraphQL\\Resolvers\\FinancialCreateResolver")
+    financialDelete(id: ID! @eq): FinancialRelease @delete
+
+    categoryUpsert(input: CategoryInput! @spread): Category @upsert
+
+    creditCardUpsert(input: CreditCardInput! @spread): CreditCard @upsert
+    creditCardDelete(id: ID! @eq): CreditCard @delete
+
+}
